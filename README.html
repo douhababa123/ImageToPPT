@@ -1,0 +1,215 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Image To Editable PPT 使用说明</title>
+    <style>
+      :root {
+        color-scheme: light;
+        font-family: "Microsoft YaHei", "Segoe UI", system-ui, sans-serif;
+        color: #172033;
+        background: #f3f6fb;
+      }
+
+      body {
+        margin: 0;
+        line-height: 1.7;
+      }
+
+      main {
+        width: min(1040px, calc(100% - 40px));
+        margin: 0 auto;
+        padding: 48px 0 72px;
+      }
+
+      header {
+        padding: 36px 0 24px;
+      }
+
+      h1 {
+        margin: 0;
+        font-size: 42px;
+        line-height: 1.15;
+      }
+
+      h2 {
+        margin: 0 0 14px;
+        font-size: 24px;
+      }
+
+      p {
+        margin: 0 0 14px;
+      }
+
+      .lead {
+        max-width: 780px;
+        color: #526070;
+        font-size: 18px;
+      }
+
+      .grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+        gap: 16px;
+        margin-top: 20px;
+      }
+
+      section,
+      .card {
+        background: #fff;
+        border: 1px solid #dfe7f3;
+        border-radius: 8px;
+        padding: 22px;
+        box-shadow: 0 12px 32px rgba(23, 32, 51, 0.06);
+      }
+
+      section {
+        margin-top: 18px;
+      }
+
+      code,
+      pre {
+        font-family: Consolas, "Cascadia Mono", monospace;
+      }
+
+      pre {
+        overflow-x: auto;
+        margin: 12px 0 0;
+        padding: 14px;
+        border-radius: 8px;
+        background: #0f172a;
+        color: #e5edf8;
+      }
+
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 8px;
+      }
+
+      th,
+      td {
+        padding: 10px 12px;
+        border-bottom: 1px solid #e5ecf5;
+        text-align: left;
+        vertical-align: top;
+      }
+
+      th {
+        background: #f7f9fd;
+      }
+
+      ul {
+        padding-left: 20px;
+        margin: 8px 0 0;
+      }
+
+      .tag {
+        display: inline-block;
+        margin-bottom: 10px;
+        padding: 3px 9px;
+        border-radius: 999px;
+        background: #e9f2ff;
+        color: #225ea8;
+        font-size: 13px;
+        font-weight: 700;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <header>
+        <span class="tag">Image To Editable PPT</span>
+        <h1>图片转可编辑 PPT 项目说明</h1>
+        <p class="lead">
+          本项目提供一个 FastAPI 网页应用：上传一组图片后，系统识别图片中的文字，擦除原图文字区域，并生成带可编辑文本框的 PowerPoint 文件。
+        </p>
+      </header>
+
+      <div class="grid">
+        <div class="card">
+          <h2>一键启动</h2>
+          <p>Windows PowerShell 中进入项目目录，执行：</p>
+          <pre>.\run.ps1</pre>
+          <p>启动后打开 <code>http://127.0.0.1:8000/</code>。</p>
+        </div>
+        <div class="card">
+          <h2>默认限制</h2>
+          <ul>
+            <li>单次最多上传 20 张图片。</li>
+            <li>单张图片最大 25 MB。</li>
+            <li>支持 PNG、JPG、JPEG、WEBP、BMP。</li>
+          </ul>
+        </div>
+      </div>
+
+      <section>
+        <h2>手动启动</h2>
+        <p>如果需要手动配置环境，可以按下面步骤执行：</p>
+        <pre>python -m venv .venv312
+.\.venv312\Scripts\python.exe -m pip install -r requirements.txt
+.\.venv312\Scripts\python.exe -m uvicorn app.main:app --host 127.0.0.1 --port 8000</pre>
+      </section>
+
+      <section>
+        <h2>关键配置</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>变量</th>
+              <th>说明</th>
+              <th>常用值</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><code>OCR_PROVIDER</code></td>
+              <td>OCR 来源。</td>
+              <td><code>local</code> 或 <code>paddle_api</code></td>
+            </tr>
+            <tr>
+              <td><code>INPAINT_PROVIDER</code></td>
+              <td>文字擦除方式。</td>
+              <td><code>smart</code>、<code>opencv</code>、<code>lama</code>、<code>none</code></td>
+            </tr>
+            <tr>
+              <td><code>IMAGE_FIT</code></td>
+              <td>图片放入幻灯片时的适配方式。</td>
+              <td><code>cover</code>、<code>contain</code>、<code>stretch</code></td>
+            </tr>
+            <tr>
+              <td><code>MAX_UPLOAD_FILES</code></td>
+              <td>单次最多上传图片数量。</td>
+              <td>默认 <code>20</code></td>
+            </tr>
+            <tr>
+              <td><code>MAX_UPLOAD_MB</code></td>
+              <td>单张图片大小上限。</td>
+              <td>默认 <code>25</code></td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section>
+        <h2>密钥与安全</h2>
+        <ul>
+          <li>不要提交、打包或分享本地 <code>.env</code> 文件，它可能包含真实 API key。</li>
+          <li>对外部署时建议从系统环境变量注入 <code>PADDLE_API_KEY</code>。</li>
+          <li>上传接口已限制文件数量、大小、扩展名，并会验证文件是否为真实图片。</li>
+        </ul>
+      </section>
+
+      <section>
+        <h2>常见问题</h2>
+        <ul>
+          <li>首次使用本地 OCR 或 LaMa 时，模型加载可能较慢，请耐心等待。</li>
+          <li>如果 LaMa 依赖安装困难，可以在 <code>.env</code> 中设置 <code>INPAINT_PROVIDER=smart</code> 或 <code>opencv</code>。</li>
+          <li>在线 OCR 需要配置有效的 <code>PADDLE_API_KEY</code>，代理环境可通过 <code>PADDLE_API_USE_ENV_PROXY</code> 控制。</li>
+          <li>生成失败时，请查看 <code>logs/app.log</code>，前端错误提示会包含任务 ID，便于定位日志。</li>
+        </ul>
+      </section>
+    </main>
+  </body>
+</html>
