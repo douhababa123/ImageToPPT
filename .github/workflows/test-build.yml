@@ -1,0 +1,20 @@
+name: Test5
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: self-hosted
+    env:
+      DOCKER_HOST: unix:///var/run/docker-nvme.sock
+    steps:
+      - name: Build
+        run: |
+          cd /mnt/nvme-ssd/ImageToPPT
+          docker build \
+            --build-arg HTTP_PROXY=http://DOC2CHZ:Doudou925EEE@10.187.197.10:8080 \
+            --build-arg HTTPS_PROXY=http://DOC2CHZ:Doudou925EEE@10.187.197.10:8080 \
+            -t imagetoppt:latest .
