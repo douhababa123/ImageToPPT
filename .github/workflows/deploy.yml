@@ -1,0 +1,38 @@
+name: ImageToPPT Jetson Deploy
+
+on:
+  push:
+    branches: [main, deploy/jetson]
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: self-hosted
+    env:
+      DOCKER_HOST: unix:///var/run/docker-nvme.sock
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Build Docker image
+        run: |
+          docker build \
+            --build-arg HTTP_PROXY=http://DOC2CHZ:Doudou925EEE@10.187.197.10:8080 \
+            --build-arg HTTPS_PROXY=http://DOC2CHZ:Doudou925EEE@10.187.197.10:8080 \
+            -t imagetoppt:latest .
+
+      - name: Stop old container
+        run: docker rm -f imagetoppt 2>/dev/null || true
+
+      - name: Run new container
+        run: |
+          docker run -d \
+            --name imagetoppt \
+            --restart unless-stopped \
+            -p 8002:8000 \
+            -v /mnt/nvme-ssd/ImageToPPT/outputs:/app/outputs \
+            -v /mnt/nvme-ssd/ImageToPPT/logs:/app/logs \
+            imagetoppt:latest
+
+      - name: Verify
+        run: sleep 5 && docker ps --filter name=imagetoppt --format "{{.Names}}: {{.Status}} {{.Ports}}"
