@@ -110,7 +110,13 @@ def _detect_with_local_paddleocr(image_path: Path) -> list[OcrTextBox]:
         import torch  # noqa: F401
         from paddleocr import PaddleOCR
 
-        _local_ocr = PaddleOCR(use_angle_cls=True, lang=settings.ocr_lang)
+        _local_ocr = PaddleOCR(
+            use_angle_cls=True,
+            lang=settings.ocr_lang,
+            cpu_threads=1,
+            use_mp=False,
+            total_process_num=1,
+        )
 
     raw_result = _local_ocr.ocr(str(image_path), cls=True)
     return _parse_paddleocr_result(raw_result)
