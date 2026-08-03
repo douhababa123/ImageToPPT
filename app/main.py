@@ -180,21 +180,33 @@ def _run_conversion(
         cleaned_dir = job_dir / "cleaned"
         cleaned_dir.mkdir(parents=True, exist_ok=True)
 
-        for index, image_path in enumerate(image_paths):
-            _set_progress(job_id, stage="inpaint", current=index, total=len(image_paths))
+        # Pre-compute the editable boxes per image so progress can be box-granular.
+        editable_per_image = []
+        for index in range(len(image_paths)):
             boxes = per_image_boxes[index] if index < len(per_image_boxes) else []
             chosen = selection[index] if index < len(selection) else set(range(len(boxes)))
-            editable = [box for i, box in enumerate(boxes) if i in chosen]
+            editable_per_image.append([box for i, box in enumerate(boxes) if i in chosen])
 
+        total_boxes = max(1, sum(len(editable) for editable in editable_per_image))
+        done_boxes = 0
+
+        def on_box():
+            nonlocal done_boxes
+            done_boxes += 1
+            _set_progress(job_id, stage="inpaint", current=done_boxes, total=total_boxes)
+
+        _set_progress(job_id, stage="inpaint", current=0, total=total_boxes)
+        for index, image_path in enumerate(image_paths):
+            editable = editable_per_image[index]
             cleaned_image = cleaned_dir / f"slide-{index + 1:03d}.png"
-            remove_text_from_image(image_path, editable, cleaned_image)
+            remove_text_from_image(image_path, editable, cleaned_image, on_box=on_box)
             processed_slides.append((image_path, cleaned_image, editable))
 
-        _set_progress(job_id, stage="PPTX", current=len(image_paths), total=len(image_paths))
+        _set_progress(job_id, stage="PPTX", current=total_boxes, total=total_boxes)
         pptx_path = build_pptx(processed_slides, job_dir / "editable-images.pptx")
         logger.info("Job %s completed: %s", job_id, pptx_path)
 
-        _set_progress(job_id, status="done", stage="complete", current=len(image_paths), total=len(image_paths))
+        _set_progress(job_id, status="done", stage="complete", current=total_boxes, total=total_boxes)
     except Exception as error:
         logger.exception("Job %s failed", job_id)
         _set_progress(job_id, status="error", error=str(error))

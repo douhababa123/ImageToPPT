@@ -192,6 +192,7 @@ function resetProgress() {
   pptObjectUrl = null;
   downloadBtn.hidden = true;
   errorMsg.hidden = true;
+  document.querySelector("#spinner").hidden = false;
   progressFill.style.width = "0%";
   progressText.textContent = "0 / 0";
   progressStage.textContent = "处理中...";
@@ -204,6 +205,7 @@ async function pollStatus() {
     const d = await res.json();
     if (d.status === "error") {
       progressStage.textContent = "处理失败";
+      document.querySelector("#spinner").hidden = true;
       errorMsg.textContent = d.error || "处理失败";
       errorMsg.hidden = false;
       clearInterval(pollTimer);
@@ -214,6 +216,7 @@ async function pollStatus() {
       progressFill.style.width = "100%";
       progressText.textContent = `${d.total} / ${d.total}`;
       progressStage.textContent = "处理完成！";
+      document.querySelector("#spinner").hidden = true;
       clearInterval(pollTimer);
       await fetchResult();
       convertBtn.disabled = false;
@@ -223,7 +226,7 @@ async function pollStatus() {
     progressFill.style.width = pct + "%";
     progressFill.setAttribute("aria-valuenow", pct);
     progressText.textContent = `${d.current} / ${d.total}`;
-    const names = { OCR: "OCR 识别", inpaint: "擦除文字", PPTX: "生成 PPT" };
+    const names = { OCR: "OCR 识别中", inpaint: "擦除文字中（较慢，请稍候）", PPTX: "正在生成 PPT" };
     progressStage.textContent = names[d.stage] || d.stage;
   } catch {
     progressStage.textContent = "连接中断";

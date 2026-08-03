@@ -16,7 +16,12 @@ from app.services.text_rules import should_keep_as_background
 _lama_model = None
 
 
-def remove_text_from_image(image_path: Path, text_boxes: list[OcrTextBox], output_path: Path) -> Path:
+def remove_text_from_image(
+    image_path: Path,
+    text_boxes: list[OcrTextBox],
+    output_path: Path,
+    on_box=None,
+) -> Path:
     if settings.inpaint_provider == "none":
         output_path.parent.mkdir(parents=True, exist_ok=True)
         shutil.copyfile(image_path, output_path)
@@ -27,12 +32,15 @@ def remove_text_from_image(image_path: Path, text_boxes: list[OcrTextBox], outpu
         raise ValueError(f"无法读取图片：{image_path}")
 
     if settings.inpaint_provider == "hybrid":
-        cleaned = _erase_hybrid(image, text_boxes)
+        cleaned = _erase_hybrid(image, text_boxes, on_box)
     elif settings.inpaint_provider in {"opencv", "smart"}:
-        cleaned = _erase_text_strokes(image, text_boxes)
+        cleaned = _erase_text_strokes(image, text_boxes, on_box)
     elif settings.inpaint_provider == "lama":
         mask = build_text_mask(image, text_boxes)
         cleaned = _inpaint_with_lama(image, mask) if np.any(mask) else image
+        if on_box:
+            for _ in text_boxes:
+                on_box()
     else:
         raise ValueError(f"Unsupported INPAINT_PROVIDER: {settings.inpaint_provider}")
 
@@ -41,25 +49,34 @@ def remove_text_from_image(image_path: Path, text_boxes: list[OcrTextBox], outpu
     return output_path
 
 
-def _erase_hybrid(image: np.ndarray, text_boxes: list[OcrTextBox]) -> np.ndarray:
+def _erase_hybrid(image: np.ndarray, text_boxes: list[OcrTextBox], on_box=None) -> np.ndarray:
     """Simple backgrounds use OpenCV stroke fill; complex (textured) regions use LaMa."""
     height, width = image.shape[:2]
     image_rgb = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
     cleaned = image.copy()
     complex_mask = np.zeros((height, width), dtype=np.uint8)
+    complex_count = 0
+
+    def _tick():
+        if on_box:
+            on_box()
 
     for text_box in text_boxes:
         if should_keep_as_background(text_box, width, height):
+            _tick()
             continue
         appearance = estimate_text_appearance(image_rgb, text_box)
         if appearance is None:
+            _tick()
             continue
         if appearance.light_text_on_colored_background:
+            _tick()
             continue
         if _background_is_simple(image_rgb, appearance):
             roi = cleaned[appearance.top : appearance.bottom, appearance.left : appearance.right]
             filled = _fill_with_row_background(roi, appearance.stroke_mask, appearance.background_rgb)
             cleaned[appearance.top : appearance.bottom, appearance.left : appearance.right] = filled
+            _tick()
         else:
             kernel = np.ones((3, 3), dtype=np.uint8)
             dilated = cv2.dilate(appearance.stroke_mask.astype(np.uint8), kernel, iterations=1)
@@ -67,10 +84,13 @@ def _erase_hybrid(image: np.ndarray, text_boxes: list[OcrTextBox]) -> np.ndarray
                 complex_mask[appearance.top : appearance.bottom, appearance.left : appearance.right],
                 dilated,
             )
+            complex_count += 1
 
     if np.any(complex_mask):
         complex_mask = refine_text_mask(complex_mask)
         cleaned = _inpaint_with_lama(cleaned, complex_mask)
+        for _ in range(complex_count):
+            _tick()
 
     return cleaned
 
@@ -137,28 +157,36 @@ def _build_precise_text_mask(image: np.ndarray, text_boxes: list[OcrTextBox]) ->
     return mask
 
 
-def _erase_text_strokes(image: np.ndarray, text_boxes: list[OcrTextBox]) -> np.ndarray:
+def _erase_text_strokes(image: np.ndarray, text_boxes: list[OcrTextBox], on_box=None) -> np.ndarray:
     height, width = image.shape[:2]
     cleaned = image.copy()
     image_rgb = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
 
     for text_box in text_boxes:
         if should_keep_as_background(text_box, width, height):
+            if on_box:
+                on_box()
             continue
 
         appearance = estimate_text_appearance(image_rgb, text_box)
         if appearance is None:
+            if on_box:
+                on_box()
             continue
 
         if appearance.light_text_on_colored_background:
             # Colored title bars are already clean vector-like UI elements in the
             # source image. Wiping their text tends to expand into icons,
             # rounded corners, and bar edges, so preserve them as raster.
+            if on_box:
+                on_box()
             continue
 
         roi = cleaned[appearance.top:appearance.bottom, appearance.left:appearance.right]
         roi = _fill_with_row_background(roi, appearance.stroke_mask, appearance.background_rgb)
         cleaned[appearance.top:appearance.bottom, appearance.left:appearance.right] = roi
+        if on_box:
+            on_box()
 
     return cleaned
 
