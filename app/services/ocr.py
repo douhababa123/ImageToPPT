@@ -20,6 +20,7 @@ class OcrTextBox:
     text: str
     confidence: float
     box: list[tuple[float, float]]
+    bold_hint: bool | None = None
 
     @property
     def bounds(self) -> tuple[float, float, float, float]:
@@ -114,6 +115,7 @@ _TEXT_BLOCK_LABELS = {
     "text", "paragraph_title", "doc_title", "title", "content", "abstract",
     "footnote", "header", "footer", "reference", "algorithm", "aside_text",
 }
+_BOLD_LABELS = {"paragraph_title", "doc_title", "title"}
 
 
 def _parse_paddle_vl_result(result: Any) -> list[OcrTextBox]:
@@ -134,7 +136,14 @@ def _parse_paddle_vl_result(result: Any) -> list[OcrTextBox]:
             if not polygon:
                 continue
             points = [(float(x), float(y)) for x, y in polygon]
-            text_boxes.append(OcrTextBox(text=text, confidence=float(block.get("score", 1.0) or 1.0), box=points))
+            text_boxes.append(
+                OcrTextBox(
+                    text=text,
+                    confidence=float(block.get("score", 1.0) or 1.0),
+                    box=points,
+                    bold_hint=label in _BOLD_LABELS,
+                )
+            )
     return text_boxes
 
 

@@ -96,6 +96,7 @@ async def ocr(files: list[UploadFile] = File(...)):
                     "confidence": round(box.confidence, 3),
                     "box": [[float(x), float(y)] for x, y in box.box],
                     "keep": should_keep_as_background(box, width, height),
+                    "bold": box.bold_hint,
                 }
             )
         all_boxes.append(boxes_payload)
@@ -137,7 +138,15 @@ async def convert(request: Request):
 
     stored = json.loads(ocr_file.read_text(encoding="utf-8"))["images"]
     per_image_boxes = [
-        [OcrTextBox(text=b["text"], confidence=b["confidence"], box=[tuple(p) for p in b["box"]]) for b in boxes]
+        [
+            OcrTextBox(
+                text=b["text"],
+                confidence=b["confidence"],
+                box=[tuple(p) for p in b["box"]],
+                bold_hint=b.get("bold"),
+            )
+            for b in boxes
+        ]
         for boxes in stored
     ]
 

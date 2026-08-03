@@ -138,7 +138,7 @@ def add_editable_text(slide, text_box: OcrTextBox, placement: ImagePlacement, or
     estimated_font_size = _estimate_font_size(text_box.text, width, height)
     run.font.size = Pt(estimated_font_size)
     _apply_fonts(run, text_box.text)
-    run.font.bold = _should_use_bold(text_box.text, height)
+    run.font.bold = _should_use_bold(text_box, height)
     run.font.color.rgb = _sample_text_color(original_image, text_box)
     _mark_run_as_proofed(run)
 
@@ -154,15 +154,16 @@ def _has_cjk(text: str) -> bool:
 
 
 def _apply_fonts(run, text: str) -> None:
-    """Set the Latin face and, when CJK characters are present, the East Asian face."""
-    run.font.name = settings.latin_font
+    """Use a single face for Latin, East Asian and complex-script runs so a mixed
+    line (e.g. "方案 A") renders in one consistent font instead of two."""
+    face = settings.cjk_font if _has_cjk(text) else settings.latin_font
+    run.font.name = face
     run_properties = run._r.get_or_add_rPr()
-    for tag in ("a:ea", "a:cs"):
+    for tag in ("a:latin", "a:ea", "a:cs"):
         for element in run_properties.findall(qn(tag)):
             run_properties.remove(element)
-    if _has_cjk(text):
-        ea = run_properties.makeelement(qn("a:ea"), {"typeface": settings.cjk_font})
-        run_properties.append(ea)
+    for tag in ("a:latin", "a:ea", "a:cs"):
+        run_properties.append(run_properties.makeelement(qn(tag), {"typeface": face}))
 
 
 def _mark_run_as_proofed(run) -> None:
@@ -194,7 +195,12 @@ def _estimate_font_size(text: str, width: int, height: int) -> float:
     return max(5, min(96, by_height, by_width if weighted_char_count > 0 else by_height))
 
 
-def _should_use_bold(text: str, height: int) -> bool:
+def _should_use_bold(text_box, height: int) -> bool:
+    # Prefer the OCR model's structural hint (title vs body) for a consistent
+    # weight that matches the source; fall back to size heuristics otherwise.
+    if text_box.bold_hint is not None:
+        return text_box.bold_hint
+    text = text_box.text
     if height / 12700 >= 13:
         return True
     return bool(re.match(r"^\d+\.?\s+[A-Z]", text.strip()))

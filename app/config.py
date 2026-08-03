@@ -19,7 +19,7 @@ class Settings:
     slide_width_inches: float = float(os.getenv("SLIDE_WIDTH_INCHES", "13.333333"))
     slide_height_inches: float = float(os.getenv("SLIDE_HEIGHT_INCHES", "7.5"))
     image_fit: str = os.getenv("IMAGE_FIT", "cover")
-    latin_font: str = os.getenv("LATIN_FONT", "Arial")
+    latin_font: str = os.getenv("LATIN_FONT", "微软雅黑")
     cjk_font: str = os.getenv("CJK_FONT", "微软雅黑")
     mask_padding_ratio: float = float(os.getenv("MASK_PADDING_RATIO", "0.12"))
     lama_crop_padding_ratio: float = float(os.getenv("LAMA_CROP_PADDING_RATIO", "0.08"))
