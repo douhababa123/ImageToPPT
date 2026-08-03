@@ -35,4 +35,4 @@ jobs:
             imagetoppt:latest
 
       - name: Verify
-        run: sleep 5 && curl -sf http://localhost:8002/health || echo "health check not available, checking port..." && docker ps --filter name=imagetoppt
+        run: sleep 5 && docker ps --filter name=imagetoppt --format "{{.Names}}: {{.Status}} {{.Ports}}"
