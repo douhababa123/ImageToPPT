@@ -34,18 +34,55 @@ _local_ocr: Any | None = None
 
 def detect_text(image_path: Path) -> list[OcrTextBox]:
     if settings.ocr_provider == "local":
-        return _detect_with_local_paddleocr(image_path)
+        return _postprocess_boxes(_detect_with_local_paddleocr(image_path))
 
     if settings.ocr_provider == "paddle_api":
         try:
-            return _detect_with_paddle_api(image_path)
+            return _postprocess_boxes(_detect_with_paddle_api(image_path))
         except Exception as error:
             if settings.ocr_fallback_provider == "local":
                 logger.warning("Paddle API OCR failed, falling back to local PaddleOCR: %s", error)
-                return _detect_with_local_paddleocr(image_path)
+                return _postprocess_boxes(_detect_with_local_paddleocr(image_path))
             raise
 
     raise ValueError(f"Unsupported OCR_PROVIDER: {settings.ocr_provider}")
+
+
+def _is_symbol_noise(text: str) -> bool:
+    """True for boxes that contain no real word characters (stray punctuation etc.)."""
+    cleaned = "".join(ch for ch in text if ch.isalnum() or "一" <= ch <= "鿿")
+    return not cleaned
+
+
+def _overlap_ratio(a: OcrTextBox, b: OcrTextBox) -> float:
+    ax1, ay1, ax2, ay2 = a.bounds
+    bx1, by1, bx2, by2 = b.bounds
+    ix = max(0, min(ax2, bx2) - max(ax1, bx1))
+    iy = max(0, min(ay2, by2) - max(ay1, by1))
+    inter = ix * iy
+    if inter <= 0:
+        return 0.0
+    smaller = min((ax2 - ax1) * (ay2 - ay1), (bx2 - bx1) * (by2 - by1))
+    return inter / smaller if smaller else 0.0
+
+
+def _postprocess_boxes(boxes: list[OcrTextBox]) -> list[OcrTextBox]:
+    """Drop symbol-only noise and merge heavily-overlapping duplicate boxes."""
+    kept = [b for b in boxes if not _is_symbol_noise(b.text)]
+    kept.sort(key=lambda b: (b.bounds[1], b.bounds[0]))
+    result: list[OcrTextBox] = []
+    for box in kept:
+        merged = False
+        for existing in result:
+            if _overlap_ratio(box, existing) > 0.5:
+                # keep the longer text (more complete) of the two
+                if len(box.text) > len(existing.text):
+                    existing.text = box.text
+                merged = True
+                break
+        if not merged:
+            result.append(box)
+    return result
 
 
 def _detect_with_paddle_api(image_path: Path) -> list[OcrTextBox]:
