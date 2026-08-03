@@ -10,29 +10,48 @@
     <main class="shell">
       <section class="hero">
         <p class="eyebrow">Image To Editable PPT</p>
-        <h1>把图片里的文字变成 PPT 可编辑文本</h1>
-        <p class="subtitle">每张图片生成一页幻灯片：先识别中英文文字，再擦除原图文字，最后把可编辑文本框放回原位置。</p>
+        <h1>把图片文字变成可编辑 PPT</h1>
+        <p class="subtitle">上传图片，自动识别中英文文字并擦除，生成可编辑文本框的 PPT 幻灯片。</p>
       </section>
 
-      <section class="card">
+      <section class="card" id="uploadCard">
         <label class="dropzone" for="files">
           <input id="files" type="file" accept="image/png,image/jpeg,image/webp,image/bmp" multiple />
           <span>选择或拖入图片</span>
-          <small>支持 PNG、JPG、WEBP、BMP；上传顺序就是 PPT 页面顺序。</small>
+          <small>支持 PNG、JPG、WEBP、BMP；上传顺序即 PPT 页面顺序</small>
         </label>
         <div id="fileList" class="file-list"></div>
         <button id="convertBtn" type="button">生成 PPT</button>
-        <button id="downloadBtn" class="download-btn" type="button" hidden>保存 PPT</button>
         <p id="status" class="status" role="status" aria-live="polite"></p>
       </section>
 
-      <section class="notes">
-        <h2>当前实现</h2>
-        <ul>
-          <li>OCR：支持在线接口，也保留本地 PaddleOCR 兜底。</li>
-          <li>去文字：使用精细文字笔画 mask 擦除原图文字，再叠加可编辑文本框。</li>
-          <li>PPT：背景、图标、排版作为图片保留，文字层变成可编辑文本框。</li>
-        </ul>
+      <section class="card" id="progressCard" hidden>
+        <div class="progress-header">
+          <h2>正在处理</h2>
+          <p id="progressStage" class="stage-label">准备中...</p>
+        </div>
+        <div class="progress-bar-track">
+          <div class="progress-bar-fill" id="progressFill" role="progressbar" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100"></div>
+        </div>
+        <p id="progressText" class="progress-text">0 / 0</p>
+        <div class="stage-indicators">
+          <div class="stage" data-stage="OCR">
+            <span class="stage-icon">1</span>
+            <span>OCR 识别</span>
+          </div>
+          <div class="stage-divider"></div>
+          <div class="stage" data-stage="inpaint">
+            <span class="stage-icon">2</span>
+            <span>擦除文字</span>
+          </div>
+          <div class="stage-divider"></div>
+          <div class="stage" data-stage="PPTX">
+            <span class="stage-icon">3</span>
+            <span>生成 PPT</span>
+          </div>
+        </div>
+        <button id="downloadBtn" class="download-btn" type="button" hidden>保存 PPT</button>
+        <p id="errorMsg" class="error-msg" hidden></p>
       </section>
     </main>
     <script src="/static/app.js"></script>

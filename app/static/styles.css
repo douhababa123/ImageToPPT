@@ -45,14 +45,14 @@ h1 {
   font-size: 18px;
 }
 
-.card,
-.notes {
+.card {
   background: rgba(255, 255, 255, 0.78);
   border: 1px solid rgba(67, 97, 238, 0.16);
   border-radius: 28px;
   box-shadow: 0 24px 80px rgba(33, 53, 99, 0.12);
   padding: 28px;
   backdrop-filter: blur(18px);
+  margin-bottom: 24px;
 }
 
 .dropzone {
@@ -120,14 +120,117 @@ button:disabled {
   font-weight: 700;
 }
 
-.notes {
-  margin-top: 24px;
+/* --- progress --- */
+
+.progress-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin-bottom: 16px;
 }
 
-.notes h2 {
-  margin-top: 0;
+.progress-header h2 {
+  margin: 0;
+  font-size: 22px;
 }
 
-.notes li {
-  margin: 10px 0;
+.stage-label {
+  color: #4361ee;
+  font-weight: 700;
+  font-size: 15px;
+}
+
+.progress-bar-track {
+  width: 100%;
+  height: 12px;
+  background: rgba(67, 97, 238, 0.12);
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.progress-bar-fill {
+  height: 100%;
+  width: 0%;
+  background: linear-gradient(90deg, #4361ee, #7209b7);
+  border-radius: 6px;
+  transition: width 0.4s ease;
+}
+
+.progress-text {
+  text-align: right;
+  color: #52627a;
+  font-size: 14px;
+  margin: 6px 0 20px;
+}
+
+/* --- stage indicators --- */
+
+.stage-indicators {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  margin-bottom: 20px;
+}
+
+.stage {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  color: #9ca3af;
+  transition: color 0.3s;
+}
+
+.stage-icon {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: rgba(67, 97, 238, 0.1);
+  color: #9ca3af;
+  display: grid;
+  place-items: center;
+  font-weight: 800;
+  font-size: 14px;
+  transition: all 0.3s;
+}
+
+.stage.active {
+  color: #4361ee;
+}
+
+.stage.active .stage-icon {
+  background: #4361ee;
+  color: white;
+  box-shadow: 0 0 0 6px rgba(67, 97, 238, 0.18);
+  animation: pulse 1.5s ease infinite;
+}
+
+.stage.done {
+  color: #087f5b;
+}
+
+.stage.done .stage-icon {
+  background: #087f5b;
+  color: white;
+}
+
+.stage-divider {
+  width: 40px;
+  height: 2px;
+  background: rgba(67, 97, 238, 0.15);
+  margin-top: -16px;
+}
+
+@keyframes pulse {
+  0%, 100% { box-shadow: 0 0 0 6px rgba(67, 97, 238, 0.18); }
+  50% { box-shadow: 0 0 0 12px rgba(67, 97, 238, 0.06); }
+}
+
+.error-msg {
+  color: #d92d20;
+  font-weight: 700;
+  text-align: center;
+  margin: 12px 0 0;
 }
