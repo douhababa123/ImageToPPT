@@ -1,8 +1,8 @@
-name: ImageToPPT Jetson Deploy
+name: ImageToPPT Deploy
 
 on:
   push:
-    branches: [main, deploy/jetson]
+    branches: [main]
   workflow_dispatch:
 
 jobs:
@@ -11,11 +11,14 @@ jobs:
     env:
       DOCKER_HOST: unix:///var/run/docker-nvme.sock
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      - name: Git pull latest
+        run: |
+          cd /mnt/nvme-ssd/ImageToPPT
+          git pull origin main
 
       - name: Build Docker image
         run: |
+          cd /mnt/nvme-ssd/ImageToPPT
           docker build \
             --build-arg HTTP_PROXY=http://DOC2CHZ:Doudou925EEE@10.187.197.10:8080 \
             --build-arg HTTPS_PROXY=http://DOC2CHZ:Doudou925EEE@10.187.197.10:8080 \
