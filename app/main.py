@@ -42,8 +42,9 @@ def _set_progress(job_id: str, **kwargs):
 
 
 @app.get("/", response_class=HTMLResponse)
-def index() -> str:
-    return (STATIC_DIR / "index.html").read_text(encoding="utf-8")
+def index() -> HTMLResponse:
+    html = (STATIC_DIR / "index.html").read_text(encoding="utf-8")
+    return HTMLResponse(html, headers={"Cache-Control": "no-store, no-cache, must-revalidate"})
 
 
 async def _save_uploads(files: list[UploadFile]) -> tuple[str, list[Path], Path]:
