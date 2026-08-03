@@ -11,9 +11,10 @@
       <section class="hero">
         <p class="eyebrow">Image To Editable PPT</p>
         <h1>把图片文字变成可编辑 PPT</h1>
-        <p class="subtitle">上传图片，自动识别中英文文字并擦除，生成可编辑文本框的 PPT 幻灯片。</p>
+        <p class="subtitle">上传图片 → 识别文字 → 勾选要编辑的文字 → 生成可编辑 PPT。未勾选的文字保留在原图里。</p>
       </section>
 
+      <!-- 第一步：上传 -->
       <section class="card" id="uploadCard">
         <label class="dropzone" for="files">
           <input id="files" type="file" accept="image/png,image/jpeg,image/webp,image/bmp" multiple />
@@ -21,10 +22,24 @@
           <small>支持 PNG、JPG、WEBP、BMP；上传顺序即 PPT 页面顺序</small>
         </label>
         <div id="fileList" class="file-list"></div>
-        <button id="convertBtn" type="button">生成 PPT</button>
-        <p id="status" class="status" role="status" aria-live="polite"></p>
+        <button id="ocrBtn" type="button">识别文字</button>
+        <p id="uploadStatus" class="status" role="status" aria-live="polite"></p>
       </section>
 
+      <!-- 第二步：选择要编辑的文字 -->
+      <section class="card" id="selectCard" hidden>
+        <div class="step-head">
+          <h2>勾选要变成可编辑的文字</h2>
+          <p class="hint">蓝色 = 会擦除并变成文本框；灰色 = 保留在原图。点击文字框切换。</p>
+        </div>
+        <div id="selectList"></div>
+        <div class="actions">
+          <button id="backBtn" class="ghost" type="button">重新上传</button>
+          <button id="convertBtn" type="button">生成 PPT</button>
+        </div>
+      </section>
+
+      <!-- 第三步：处理进度 -->
       <section class="card" id="progressCard" hidden>
         <div class="progress-header">
           <h2>正在处理</h2>
@@ -34,23 +49,8 @@
           <div class="progress-bar-fill" id="progressFill" role="progressbar" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100"></div>
         </div>
         <p id="progressText" class="progress-text">0 / 0</p>
-        <div class="stage-indicators">
-          <div class="stage" data-stage="OCR">
-            <span class="stage-icon">1</span>
-            <span>OCR 识别</span>
-          </div>
-          <div class="stage-divider"></div>
-          <div class="stage" data-stage="inpaint">
-            <span class="stage-icon">2</span>
-            <span>擦除文字</span>
-          </div>
-          <div class="stage-divider"></div>
-          <div class="stage" data-stage="PPTX">
-            <span class="stage-icon">3</span>
-            <span>生成 PPT</span>
-          </div>
-        </div>
         <button id="downloadBtn" class="download-btn" type="button" hidden>保存 PPT</button>
+        <p id="doneTip" class="hint" hidden>发文件给老板时：PPT 里图片是原分辨率。导出 PDF/图片请在 PowerPoint 选「高分辨率」或 150 DPI 以上，避免模糊。</p>
         <p id="errorMsg" class="error-msg" hidden></p>
       </section>
     </main>
