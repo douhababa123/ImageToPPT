@@ -2,7 +2,7 @@ name: Deploy to Jetson
 
 on:
   push:
-    branches: [deploy/jetson]
+    branches: [main, deploy/jetson]
   workflow_dispatch:
 
 jobs:
