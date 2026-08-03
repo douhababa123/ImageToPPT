@@ -14,6 +14,9 @@ const progressFill = document.querySelector("#progressFill");
 const progressText = document.querySelector("#progressText");
 const progressStage = document.querySelector("#progressStage");
 const downloadBtn = document.querySelector("#downloadBtn");
+const doneActions = document.querySelector("#doneActions");
+const homeBtn = document.querySelector("#homeBtn");
+const cleanupBtn = document.querySelector("#cleanupBtn");
 const errorMsg = document.querySelector("#errorMsg");
 
 let jobId = null;
@@ -191,6 +194,7 @@ function resetProgress() {
   if (pptObjectUrl) URL.revokeObjectURL(pptObjectUrl);
   pptObjectUrl = null;
   downloadBtn.hidden = true;
+  doneActions.hidden = true;
   errorMsg.hidden = true;
   document.querySelector("#spinner").hidden = false;
   progressFill.style.width = "0%";
@@ -241,6 +245,7 @@ async function fetchResult() {
     if (!res.ok) throw new Error("下载失败");
     pptBlob = await res.blob();
     downloadBtn.hidden = false;
+    doneActions.hidden = false;
     document.querySelector("#doneTip").hidden = false;
     downloadBtn.focus();
   } catch (e) {
@@ -271,4 +276,22 @@ downloadBtn.addEventListener("click", async () => {
   a.href = pptObjectUrl;
   a.download = "editable-images.pptx";
   a.click();
+});
+
+homeBtn.addEventListener("click", () => {
+  jobId = null;
+  imagesData = [];
+  selection = [];
+  pptBlob = null;
+  fileInput.value = "";
+  renderFiles();
+  show(uploadCard);
+});
+
+cleanupBtn.addEventListener("click", async () => {
+  if (!jobId) return;
+  await fetch(`/api/cleanup/${jobId}`, { method: "POST" }).catch(() => {});
+  cleanupBtn.disabled = true;
+  cleanupBtn.textContent = "已清理";
+  progressStage.textContent = "服务器文件已清理";
 });

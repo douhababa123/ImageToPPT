@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import logging
+import shutil
 import threading
 import uuid
 from io import BytesIO
@@ -246,6 +247,39 @@ def download_result(job_id: str):
         media_type="application/vnd.openxmlformats-officedocument.presentationml.presentation",
         filename="editable-images.pptx",
     )
+
+
+@app.post("/api/cleanup/{job_id}")
+def cleanup_job(job_id: str):
+    """Delete a job's uploaded images, cleaned images and PPT to free disk space."""
+    job_dir = WORK_DIR / job_id
+    if job_dir.exists():
+        shutil.rmtree(job_dir, ignore_errors=True)
+    with _lock:
+        _jobs.pop(job_id, None)
+    logger.info("Cleaned job %s", job_id)
+    return JSONResponse({"cleaned": job_id})
+
+
+def _cleanup_old_jobs() -> None:
+    """Periodically remove job directories older than the TTL to avoid filling disk."""
+    import time
+
+    ttl_seconds = settings.job_ttl_hours * 3600
+    while True:
+        try:
+            now = time.time()
+            if WORK_DIR.exists():
+                for entry in WORK_DIR.iterdir():
+                    if entry.is_dir() and (now - entry.stat().st_mtime) > ttl_seconds:
+                        shutil.rmtree(entry, ignore_errors=True)
+                        logger.info("TTL cleanup removed old job %s", entry.name)
+        except Exception as error:  # noqa: BLE001 - never crash the cleanup thread
+            logger.warning("TTL cleanup error: %s", error)
+        time.sleep(3600)
+
+
+threading.Thread(target=_cleanup_old_jobs, daemon=True).start()
 
 
 def _verify_image(filename: str, data: bytes) -> None:

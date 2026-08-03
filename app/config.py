@@ -36,6 +36,7 @@ class Settings:
     paddle_api_use_env_proxy: bool = os.getenv("PADDLE_API_USE_ENV_PROXY", "false").lower() == "true"
     max_upload_files: int = int(os.getenv("MAX_UPLOAD_FILES", "20"))
     max_upload_mb: int = int(os.getenv("MAX_UPLOAD_MB", "25"))
+    job_ttl_hours: float = float(os.getenv("JOB_TTL_HOURS", "24"))
 
 
 settings = Settings()
