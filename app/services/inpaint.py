@@ -351,7 +351,8 @@ def _resize_for_lama(image: np.ndarray, mask: np.ndarray) -> tuple[np.ndarray, n
 
 
 def _soft_alpha(mask: np.ndarray) -> np.ndarray:
-    alpha = cv2.dilate(mask, np.ones((5, 5), np.uint8), iterations=1)
-    alpha = cv2.GaussianBlur(alpha, (0, 0), sigmaX=1.6, sigmaY=1.6)
+    # Tighter halo so the blend does not bleed into thin lines next to text.
+    alpha = cv2.dilate(mask, np.ones((3, 3), np.uint8), iterations=1)
+    alpha = cv2.GaussianBlur(alpha, (0, 0), sigmaX=1.0, sigmaY=1.0)
     alpha = (alpha.astype(np.float32) / 255.0)[:, :, None]
     return np.clip(alpha, 0, 1)

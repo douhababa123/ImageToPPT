@@ -29,9 +29,11 @@ class Settings:
     log_dir: Path = Path(os.getenv("LOG_DIR", "logs"))
     log_level: str = os.getenv("LOG_LEVEL", "INFO")
     paddle_api_key: str = os.getenv("PADDLE_API_KEY", "")
-    paddle_api_url: str = os.getenv("PADDLE_API_URL", "https://z3jaj7aegeq3b5y4.aistudio-app.com/layout-parsing")
-    paddle_api_timeout: int = int(os.getenv("PADDLE_API_TIMEOUT", "120"))
-    paddle_api_use_env_proxy: bool = os.getenv("PADDLE_API_USE_ENV_PROXY", "true").lower() == "true"
+    paddle_api_url: str = os.getenv("PADDLE_API_URL", "https://paddleocr.aistudio-app.com/api/v2/ocr/jobs")
+    paddle_api_model: str = os.getenv("PADDLE_API_MODEL", "PaddleOCR-VL-1.6")
+    paddle_api_timeout: int = int(os.getenv("PADDLE_API_TIMEOUT", "180"))
+    paddle_poll_interval: float = float(os.getenv("PADDLE_POLL_INTERVAL", "3"))
+    paddle_api_use_env_proxy: bool = os.getenv("PADDLE_API_USE_ENV_PROXY", "false").lower() == "true"
     max_upload_files: int = int(os.getenv("MAX_UPLOAD_FILES", "20"))
     max_upload_mb: int = int(os.getenv("MAX_UPLOAD_MB", "25"))
 

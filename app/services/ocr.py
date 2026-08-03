@@ -1,7 +1,8 @@
 from __future__ import annotations
 
-import base64
+import json
 import logging
+import time
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -50,55 +51,98 @@ def _detect_with_paddle_api(image_path: Path) -> list[OcrTextBox]:
     if not settings.paddle_api_key:
         raise RuntimeError("OCR_PROVIDER=paddle_api 时必须配置 PADDLE_API_KEY。")
 
-    with image_path.open("rb") as image_file:
-        file_data = base64.b64encode(image_file.read()).decode("ascii")
-
-    payload = {
-            "file": file_data,
-            "fileType": 1,
-            "useDocOrientationClassify": False,
-            "useDocUnwarping": False,
-            "useChartRecognition": False,
-        }
-    headers = {
-            "Authorization": f"token {settings.paddle_api_key}",
-            "Content-Type": "application/json",
-        }
-
-    logger.info("Calling Paddle OCR API: url=%s use_env_proxy=%s image=%s", settings.paddle_api_url, settings.paddle_api_use_env_proxy, image_path)
     session = requests.Session()
     session.trust_env = settings.paddle_api_use_env_proxy
+    headers = {"Authorization": f"bearer {settings.paddle_api_key}"}
+    optional_payload = {
+        "useDocOrientationClassify": False,
+        "useDocUnwarping": False,
+        "useChartRecognition": False,
+    }
+
+    logger.info("Submitting Paddle VL OCR job: url=%s image=%s", settings.paddle_api_url, image_path)
     try:
-        response = session.post(
-            settings.paddle_api_url,
-            json=payload,
-            headers=headers,
-            timeout=settings.paddle_api_timeout,
-        )
-    except requests.exceptions.ProxyError as error:
-        raise RuntimeError(
-            "飞桨 OCR 请求失败：当前网络代理要求认证（HTTP 407）。"
-            "请配置可用的 HTTPS_PROXY/HTTP_PROXY，或在 .env 中设置 PADDLE_API_USE_ENV_PROXY=false 尝试直连。"
-        ) from error
-    except requests.exceptions.ConnectionError as error:
-        message = str(error)
-        if "getaddrinfo failed" in message:
-            raise RuntimeError(
-                "飞桨 OCR 请求失败：当前网络无法解析 aistudio-app.com 域名。"
-                "这通常表示公司网络不允许直连，需要配置带认证的代理；程序将尝试使用本地 PaddleOCR 兜底。"
-            ) from error
-        raise RuntimeError(f"飞桨 OCR 请求失败：{error}") from error
+        data = {"model": settings.paddle_api_model, "optionalPayload": json.dumps(optional_payload)}
+        with image_path.open("rb") as image_file:
+            submit = session.post(
+                settings.paddle_api_url,
+                headers=headers,
+                data=data,
+                files={"file": image_file},
+                timeout=settings.paddle_api_timeout,
+            )
+        submit.raise_for_status()
+        job_id = submit.json()["data"]["jobId"]
+
+        jsonl_url = _poll_paddle_job(session, headers, job_id)
+        result = _fetch_paddle_jsonl(session, jsonl_url)
     except requests.exceptions.RequestException as error:
         raise RuntimeError(f"飞桨 OCR 请求失败：{error}") from error
 
-    logger.info("Paddle OCR API returned status=%s", response.status_code)
-    response.raise_for_status()
-
-    payload = response.json()
-    text_boxes = _parse_paddle_api_result(payload)
+    text_boxes = _parse_paddle_vl_result(result)
     if not text_boxes:
-        raise RuntimeError("飞桨 OCR 返回成功，但没有解析到带坐标的文字框；请确认该接口返回 OCR 坐标字段。")
+        raise RuntimeError("飞桨 OCR 返回成功，但没有解析到带坐标的文字框。")
     return text_boxes
+
+
+def _poll_paddle_job(session, headers, job_id: str) -> str:
+    deadline = time.time() + settings.paddle_api_timeout
+    while time.time() < deadline:
+        response = session.get(f"{settings.paddle_api_url}/{job_id}", headers=headers, timeout=30)
+        response.raise_for_status()
+        data = response.json()["data"]
+        state = data.get("state")
+        if state == "done":
+            return data["resultUrl"]["jsonUrl"]
+        if state == "failed":
+            raise RuntimeError(f"飞桨 OCR 任务失败：{data.get('errorMsg')}")
+        time.sleep(settings.paddle_poll_interval)
+    raise RuntimeError("飞桨 OCR 任务超时。")
+
+
+def _fetch_paddle_jsonl(session, jsonl_url: str):
+    response = session.get(jsonl_url, timeout=30)
+    response.raise_for_status()
+    for line in response.text.strip().split("\n"):
+        line = line.strip()
+        if line:
+            return json.loads(line)["result"]
+    raise RuntimeError("飞桨 OCR 结果为空。")
+
+
+_TEXT_BLOCK_LABELS = {
+    "text", "paragraph_title", "doc_title", "title", "content", "abstract",
+    "footnote", "header", "footer", "reference", "algorithm", "aside_text",
+}
+
+
+def _parse_paddle_vl_result(result: Any) -> list[OcrTextBox]:
+    text_boxes: list[OcrTextBox] = []
+    if not isinstance(result, dict):
+        return text_boxes
+    for page in result.get("layoutParsingResults", []):
+        pruned = page.get("prunedResult", {}) if isinstance(page, dict) else {}
+        blocks = pruned.get("parsing_res_list", [])
+        for block in blocks:
+            if not isinstance(block, dict):
+                continue
+            label = str(block.get("block_label", "")).lower()
+            text = str(block.get("block_content") or "").strip()
+            if not text or (label and label not in _TEXT_BLOCK_LABELS):
+                continue
+            polygon = block.get("block_polygon_points") or _bbox_to_polygon(block.get("block_bbox"))
+            if not polygon:
+                continue
+            points = [(float(x), float(y)) for x, y in polygon]
+            text_boxes.append(OcrTextBox(text=text, confidence=float(block.get("score", 1.0) or 1.0), box=points))
+    return text_boxes
+
+
+def _bbox_to_polygon(bbox):
+    if not bbox or len(bbox) != 4:
+        return None
+    x1, y1, x2, y2 = bbox
+    return [[x1, y1], [x2, y1], [x2, y2], [x1, y2]]
 
 
 def _detect_with_local_paddleocr(image_path: Path) -> list[OcrTextBox]:
