@@ -221,7 +221,9 @@ def _inpaint_with_lama(image: np.ndarray, mask: np.ndarray) -> np.ndarray:
     result = lama(image_rgb, mask_image)
     result_bgr = cv2.cvtColor(np.array(result), cv2.COLOR_RGB2BGR)
 
-    if resize_scale != 1:
+    # LaMa pads inputs to a multiple of 8, so the output can be a few pixels
+    # larger than the crop; always fit it back to the exact crop size.
+    if result_bgr.shape[0] != crop_image.shape[0] or result_bgr.shape[1] != crop_image.shape[1]:
         result_bgr = cv2.resize(result_bgr, (crop_image.shape[1], crop_image.shape[0]), interpolation=cv2.INTER_CUBIC)
 
     cleaned = image.copy()
