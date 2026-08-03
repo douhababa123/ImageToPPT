@@ -15,14 +15,18 @@ jobs:
         run: |
           cd /mnt/nvme-ssd/ImageToPPT
           git pull origin main
-      - name: Build
+      - name: Build image (only if missing)
         run: |
-          cd /mnt/nvme-ssd/ImageToPPT
-          docker build \
-            --build-arg HTTP_PROXY=http://DOC2CHZ:Doudou925EEE@10.187.197.10:8080 \
-            --build-arg HTTPS_PROXY=http://DOC2CHZ:Doudou925EEE@10.187.197.10:8080 \
-            -t imagetoppt:latest .
+          if docker image inspect imagetoppt:latest >/dev/null 2>&1; then
+            echo "image exists, skip build (app code is volume-mounted)"
+          else
+            cd /mnt/nvme-ssd/ImageToPPT
+            docker build \
+              --build-arg HTTP_PROXY=http://DOC2CHZ:Doudou925EEE@10.187.197.10:8080 \
+              --build-arg HTTPS_PROXY=http://DOC2CHZ:Doudou925EEE@10.187.197.10:8080 \
+              -t imagetoppt:latest .
+          fi
       - name: Stop old
         run: docker rm -f imagetoppt 2>/dev/null || true
       - name: Run new
-        run: docker run -d --name imagetoppt --restart unless-stopped -p 8002:8000 -e OMP_NUM_THREADS=1 -e MKL_NUM_THREADS=1 -v /mnt/nvme-ssd/ImageToPPT/outputs:/app/outputs -v /mnt/nvme-ssd/ImageToPPT/logs:/app/logs -v /mnt/nvme-ssd/ImageToPPT/model-cache/torch:/root/.cache/torch imagetoppt:latest
+        run: docker run -d --name imagetoppt --restart unless-stopped -p 8002:8000 -e OMP_NUM_THREADS=1 -e MKL_NUM_THREADS=1 -v /mnt/nvme-ssd/ImageToPPT/app:/app/app -v /mnt/nvme-ssd/ImageToPPT/outputs:/app/outputs -v /mnt/nvme-ssd/ImageToPPT/logs:/app/logs -v /mnt/nvme-ssd/ImageToPPT/model-cache/torch:/root/.cache/torch imagetoppt:latest
