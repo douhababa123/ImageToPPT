@@ -10,6 +10,7 @@ from PIL import Image
 from pptx import Presentation
 from pptx.dml.color import RGBColor
 from pptx.enum.text import MSO_AUTO_SIZE, PP_ALIGN
+from pptx.oxml.ns import qn
 from pptx.util import Inches, Pt
 
 from app.config import settings
@@ -136,10 +137,32 @@ def add_editable_text(slide, text_box: OcrTextBox, placement: ImagePlacement, or
 
     estimated_font_size = _estimate_font_size(text_box.text, width, height)
     run.font.size = Pt(estimated_font_size)
-    run.font.name = "Arial"
+    _apply_fonts(run, text_box.text)
     run.font.bold = _should_use_bold(text_box.text, height)
     run.font.color.rgb = _sample_text_color(original_image, text_box)
     _mark_run_as_proofed(run)
+
+
+def _has_cjk(text: str) -> bool:
+    return any(
+        "一" <= character <= "鿿"
+        or "㐀" <= character <= "䶿"
+        or "　" <= character <= "〿"
+        or "＀" <= character <= "￯"
+        for character in text
+    )
+
+
+def _apply_fonts(run, text: str) -> None:
+    """Set the Latin face and, when CJK characters are present, the East Asian face."""
+    run.font.name = settings.latin_font
+    run_properties = run._r.get_or_add_rPr()
+    for tag in ("a:ea", "a:cs"):
+        for element in run_properties.findall(qn(tag)):
+            run_properties.remove(element)
+    if _has_cjk(text):
+        ea = run_properties.makeelement(qn("a:ea"), {"typeface": settings.cjk_font})
+        run_properties.append(ea)
 
 
 def _mark_run_as_proofed(run) -> None:
@@ -164,7 +187,9 @@ def _estimate_font_size(text: str, width: int, height: int) -> float:
     width_pt = width / 12700
     weighted_char_count = sum(_character_width_weight(character) for character in text.strip())
 
-    by_height = height_pt * 0.86
+    # Drive size from the measured text-box height so the glyphs fill the box;
+    # cap by width so long lines do not overflow horizontally.
+    by_height = height_pt * 1.0
     by_width = width_pt / max(weighted_char_count, 1) * 1.06
     return max(5, min(96, by_height, by_width if weighted_char_count > 0 else by_height))
 

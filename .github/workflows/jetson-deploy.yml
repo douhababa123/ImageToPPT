@@ -29,4 +29,4 @@ jobs:
       - name: Stop old
         run: docker rm -f imagetoppt 2>/dev/null || true
       - name: Run new
-        run: docker run -d --name imagetoppt --restart unless-stopped -p 8002:8000 -e OMP_NUM_THREADS=1 -e MKL_NUM_THREADS=1 -e SLIDE_MODE=fixed -v /mnt/nvme-ssd/ImageToPPT/app:/app/app -v /mnt/nvme-ssd/ImageToPPT/outputs:/app/outputs -v /mnt/nvme-ssd/ImageToPPT/logs:/app/logs -v /mnt/nvme-ssd/ImageToPPT/model-cache/torch:/root/.cache/torch imagetoppt:latest
+        run: docker run -d --name imagetoppt --restart unless-stopped -p 8002:8000 -e OMP_NUM_THREADS=1 -e MKL_NUM_THREADS=1 -e SLIDE_MODE=fixed -e INPAINT_PROVIDER=hybrid -v /mnt/nvme-ssd/ImageToPPT/app:/app/app -v /mnt/nvme-ssd/ImageToPPT/outputs:/app/outputs -v /mnt/nvme-ssd/ImageToPPT/logs:/app/logs -v /mnt/nvme-ssd/ImageToPPT/model-cache/torch:/root/.cache/torch imagetoppt:latest

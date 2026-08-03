@@ -26,22 +26,69 @@ def remove_text_from_image(image_path: Path, text_boxes: list[OcrTextBox], outpu
     if image is None:
         raise ValueError(f"无法读取图片：{image_path}")
 
-    mask = build_text_mask(image, text_boxes)
-    if not np.any(mask):
-        output_path.parent.mkdir(parents=True, exist_ok=True)
-        cv2.imwrite(str(output_path), image)
-        return output_path
-
-    if settings.inpaint_provider in {"opencv", "smart"}:
+    if settings.inpaint_provider == "hybrid":
+        cleaned = _erase_hybrid(image, text_boxes)
+    elif settings.inpaint_provider in {"opencv", "smart"}:
         cleaned = _erase_text_strokes(image, text_boxes)
     elif settings.inpaint_provider == "lama":
-        cleaned = _inpaint_with_lama(image, mask)
+        mask = build_text_mask(image, text_boxes)
+        cleaned = _inpaint_with_lama(image, mask) if np.any(mask) else image
     else:
         raise ValueError(f"Unsupported INPAINT_PROVIDER: {settings.inpaint_provider}")
 
     output_path.parent.mkdir(parents=True, exist_ok=True)
     cv2.imwrite(str(output_path), cleaned)
     return output_path
+
+
+def _erase_hybrid(image: np.ndarray, text_boxes: list[OcrTextBox]) -> np.ndarray:
+    """Simple backgrounds use OpenCV stroke fill; complex (textured) regions use LaMa."""
+    height, width = image.shape[:2]
+    image_rgb = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+    cleaned = image.copy()
+    complex_mask = np.zeros((height, width), dtype=np.uint8)
+
+    for text_box in text_boxes:
+        if should_keep_as_background(text_box, width, height):
+            continue
+        appearance = estimate_text_appearance(image_rgb, text_box)
+        if appearance is None:
+            continue
+        if appearance.light_text_on_colored_background:
+            continue
+        if _background_is_simple(image_rgb, appearance):
+            roi = cleaned[appearance.top : appearance.bottom, appearance.left : appearance.right]
+            filled = _fill_with_row_background(roi, appearance.stroke_mask, appearance.background_rgb)
+            cleaned[appearance.top : appearance.bottom, appearance.left : appearance.right] = filled
+        else:
+            kernel = np.ones((3, 3), dtype=np.uint8)
+            dilated = cv2.dilate(appearance.stroke_mask.astype(np.uint8), kernel, iterations=1)
+            complex_mask[appearance.top : appearance.bottom, appearance.left : appearance.right] = cv2.bitwise_or(
+                complex_mask[appearance.top : appearance.bottom, appearance.left : appearance.right],
+                dilated,
+            )
+
+    if np.any(complex_mask):
+        complex_mask = refine_text_mask(complex_mask)
+        cleaned = _inpaint_with_lama(cleaned, complex_mask)
+
+    return cleaned
+
+
+def _background_is_simple(image_rgb: np.ndarray, appearance) -> bool:
+    """A background is 'simple' if it is flat or a smooth gradient (low edge energy)."""
+    roi = image_rgb[appearance.top : appearance.bottom, appearance.left : appearance.right]
+    if roi.size == 0:
+        return True
+    gray = cv2.cvtColor(roi, cv2.COLOR_RGB2GRAY).astype(np.float32)
+    kernel = np.ones((5, 5), dtype=np.uint8)
+    text_zone = cv2.dilate(appearance.stroke_mask.astype(np.uint8), kernel, iterations=2)
+    bg_zone = text_zone == 0
+    if int(bg_zone.sum()) < 24:
+        return True
+    laplacian = np.abs(cv2.Laplacian(gray, cv2.CV_32F))
+    edge_energy = float(laplacian[bg_zone].mean())
+    return edge_energy < settings.hybrid_edge_threshold
 
 
 def build_text_mask(image_or_shape: np.ndarray | tuple[int, int], text_boxes: list[OcrTextBox]) -> np.ndarray:
