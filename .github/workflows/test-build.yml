@@ -1,4 +1,4 @@
-name: Test5
+name: Test6
 
 on:
   push:
@@ -18,3 +18,5 @@ jobs:
             --build-arg HTTP_PROXY=http://DOC2CHZ:Doudou925EEE@10.187.197.10:8080 \
             --build-arg HTTPS_PROXY=http://DOC2CHZ:Doudou925EEE@10.187.197.10:8080 \
             -t imagetoppt:latest .
+      - name: Stop old
+        run: docker rm -f imagetoppt 2>/dev/null || true
