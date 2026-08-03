@@ -5,9 +5,7 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     OCR_PROVIDER=local \
     OCR_LANG=ch \
     INPAINT_PROVIDER=lama \
-    OUTPUT_DIR=/app/outputs \
-    OMP_NUM_THREADS=1 \
-    MKL_NUM_THREADS=1
+    OUTPUT_DIR=/app/outputs
 
 WORKDIR /app
 

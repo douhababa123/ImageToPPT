@@ -11,6 +11,10 @@ jobs:
     env:
       DOCKER_HOST: unix:///var/run/docker-nvme.sock
     steps:
+      - name: Pull latest code
+        run: |
+          cd /mnt/nvme-ssd/ImageToPPT
+          git pull origin main
       - name: Build
         run: |
           cd /mnt/nvme-ssd/ImageToPPT
