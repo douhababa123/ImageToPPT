@@ -189,9 +189,10 @@ def _estimate_font_size(text: str, width: int, height: int) -> float:
     weighted_char_count = sum(_character_width_weight(character) for character in text.strip())
 
     # Drive size from the measured text-box height so the glyphs fill the box;
-    # cap by width so long lines do not overflow horizontally.
+    # cap by width (with a small safety margin) so long lines shrink instead of
+    # touching the box edges.
     by_height = height_pt * 1.0
-    by_width = width_pt / max(weighted_char_count, 1) * 1.06
+    by_width = width_pt / max(weighted_char_count, 1) * 0.94
     return max(5, min(96, by_height, by_width if weighted_char_count > 0 else by_height))
 
 
